@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
-
+require("./src/config/cron.config").start() // ❌production 
 
 const connectDB = require("./src/config/db.config");
 const setupSocket = require("./src/config/socket.config");
@@ -15,13 +15,8 @@ setupSocket(app);
 const io = app.get("io");
 const server = app.get("server");
 
-// all routes
 
-app.get("/", (req, res) => {
-    res.send("welcome to the server");
-}
-);
-
+app.get("/", (req, res) => res.send("welcome to the server"));
 
 const adminRoute = require('./src/routes/admin.routes')(io);
 app.use(`/${process.env.SERVER_STARTER_URL}/admin`, adminRoute);
