@@ -9,7 +9,7 @@ const sendOtpEmail = async (to, otp) => {
   htmlContent = htmlContent.replace('{{OTP}}', otp);
 
   const mailOptions = {
-    from: `"YourApp" <${process.env.MAIL_USER}>`,
+    from: `"Ecoshudhra" <${process.env.MAIL_USER}>`,
     to,
     subject: 'Your OTP Code',
     html: htmlContent,

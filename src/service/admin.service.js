@@ -58,8 +58,6 @@ exports.loginAdmin = async (req, io) => {
     }
 
     const otp = generateOtp();
-    console.log(otp);
-
 
     await Otp.create({
         email,
@@ -82,7 +80,6 @@ exports.validateOtpAdmin = async (req, io) => {
     const { otp, email } = req.body;
 
     const validOtp = await Otp.findOne({ email, otp });
-    console.log(validOtp);
 
     if (!validOtp) {
         throw { message: 'Invalid OTP', statusCode: 400 };
@@ -101,11 +98,7 @@ exports.validateOtpAdmin = async (req, io) => {
     return {
         message: 'OTP verified, login successful',
         token,
-        admin: {
-            id: admin._id,
-            name: admin.name,
-            email: admin.email,
-        },
+        admin,
     };
 };
 

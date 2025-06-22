@@ -16,10 +16,11 @@ const CitizenSchema = new mongoose.Schema({
     },
     isLocationUpdated: { type: Boolean, default: false },
     ecoCrystals: {
-        dailyReward: { type: Number, default: 5 },
         rewardPerReport: { type: Number, default: 10 },
         totalEarned: { type: Number, default: 0 }
     },
+    allowedReportPerDay: { type: Number, default: 5 },
+    todaysReportCount: { type: Number, default: 0 },
     avatar: {
         type: String,
         default: `https://avatar.iran.liara.run/public/${Math.floor(Math.random() * 100)}`
@@ -32,6 +33,5 @@ const CitizenSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// CitizenSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Citizen', CitizenSchema);

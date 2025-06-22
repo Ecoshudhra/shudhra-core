@@ -5,8 +5,7 @@ const { validationResult } = require("express-validator");
 const mongoose = require("mongoose");
 const sendNotification = require("../utils/sendNotification");
 
-exports.createGarbageReport = async (reportedBy, req) => {
-
+exports.createGarbageReport = async (reportedBy, req, io) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         throw { message: errors.array()[0].msg, statusCode: 422 };
@@ -14,6 +13,18 @@ exports.createGarbageReport = async (reportedBy, req) => {
 
     if (!mongoose.Types.ObjectId.isValid(reportedBy)) {
         throw { message: "Invalid citizen id", statusCode: 400 };
+    }
+
+    const citizen = await Citizen.findById(reportedBy);
+    if (!citizen) {
+        throw { message: "Citizen not found", statusCode: 404 };
+    }
+
+    if (citizen.todaysReportCount >= citizen.allowedReportPerDay) {
+        throw {
+            message: `Report limit reached. Only ${citizen.allowedReportPerDay} reports allowed per day.`,
+            statusCode: 429
+        };
     }
 
     const {
@@ -70,7 +81,7 @@ exports.createGarbageReport = async (reportedBy, req) => {
         ),
         Citizen.updateOne(
             { _id: reportedBy },
-            { $push: { garbageReports: newGarbage._id } }
+            { $push: { garbageReports: newGarbage._id }, $inc: { todaysReportCount: 1 } }
         )
     ]);
 
@@ -99,14 +110,46 @@ exports.createGarbageReport = async (reportedBy, req) => {
     };
 };
 
+exports.GarbageByCitizen = async (citizenId, query) => {
+    const filter = { reportedBy: citizenId };
+    if (query.status) filter.status = query.status;
+    if (query.type) filter.type = query.type;
+    console.log(filter);
 
-exports.updateGarbageStatusService = async (id, status, req) => {
+
+    return await GarbageReport.find(filter).sort({ createdAt: -1 });
+};
+
+exports.AllGarbage = async (query) => {
+    const filter = {};
+    if (query.status) filter.status = query.status;
+    if (query.type) filter.type = query.type;
+
+    return await GarbageReport.find(filter).sort({ createdAt: -1 });
+};
+
+exports.GarbageByMunicipality = async (municipalityId, query) => {
+    const filter = { assignedToMunicipality: municipalityId };
+    if (query.status) filter.status = query.status;
+    if (query.type) filter.type = query.type;
+
+    return await GarbageReport.find(filter).sort({ createdAt: -1 });
+};
+
+exports.garbageById = async (id) => {
+    return await GarbageReport.findById(id)
+        .populate('reportedBy')
+        .populate('assignedToMunicipality');
+};
+
+
+exports.updateGarbageStatusService = async (garbageId, status, req, io) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         throw { message: errors.array()[0].msg, statusCode: 422 };
     }
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(garbageId)) {
         throw { message: "Invalid Municipality ID", statusCode: 400 };
     }
 
@@ -125,7 +168,7 @@ exports.updateGarbageStatusService = async (id, status, req) => {
         };
     }
 
-    const garbageReport = await GarbageReport.findById(id);
+    const garbageReport = await GarbageReport.findById(garbageId);
 
     if (!garbageReport) {
         throw { statusCode: 404, message: 'Garbage report not found.' };
@@ -169,7 +212,6 @@ exports.updateGarbageStatusService = async (id, status, req) => {
             message: `Garbage report at ${garbageReport.location.address} was resolved by municipality.`,
             link: `/admin/reports`
         });
-
     }
 
     return {

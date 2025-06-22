@@ -8,6 +8,7 @@ const { validationResult } = require('express-validator');
 const mongoose = require('mongoose');
 const Notification = require('../models/Notification.model');
 const sendNotification = require('../utils/sendNotification');
+const { sendMunicipalityApprovedEmail, sendMunicipalityRejectEmail } = require('./mail/municipalityStatus.service');
 
 // Request new municipality (signup)
 exports.requestMunicipality = async (req, io) => {
@@ -126,13 +127,7 @@ exports.validateOtpMunicipality = async (req, email, otp) => {
   return {
     message: 'OTP verified, login successful',
     token,
-    municipality: {
-      id: municipality._id,
-      name: municipality.name,
-      zone: municipality.zone,
-      email: municipality.email,
-      city: municipality.city,
-    },
+    municipality,
   };
 };
 
@@ -316,38 +311,38 @@ exports.rejectMunicipalityById = async (municipalityId, rejectReason) => {
   return { message: 'Municipality rejected successfully', municipality };
 };
 
-// exports.updateProfileOfMunicipalities = async (req, municipalityId) => {
-//   const errors = validationResult(req);
-//   if (!errors.isEmpty()) {
-//     throw { message: errors.array()[0].msg, statusCode: 422 };
-//   }
+exports.updateProfileOfMunicipalities = async (req, municipalityId) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    throw { message: errors.array()[0].msg, statusCode: 422 };
+  }
 
-//   if (!municipalityId || !mongoose.Types.ObjectId.isValid(municipalityId)) {
-//     throw { message: 'Invalid municipality id', statusCode: 400 };
-//   }
+  if (!municipalityId || !mongoose.Types.ObjectId.isValid(municipalityId)) {
+    throw { message: 'Invalid municipality id', statusCode: 400 };
+  }
 
-//   const municipality = await Municipality.findById(municipalityId);
-//   if (!municipality) {
-//     throw { message: 'Municipality not found.', statusCode: 404 };
-//   }
-//   if (municipality.isProfileComplete) {
-//     throw { message: 'Profile is already complete you cannot update it.', statusCode: 400 };
-//   }
+  const municipality = await Municipality.findById(municipalityId);
+  if (!municipality) {
+    throw { message: 'Municipality not found.', statusCode: 404 };
+  }
+  if (municipality.isProfileComplete) {
+    throw { message: 'Profile is already complete you cannot update it.', statusCode: 400 };
+  }
 
-//   const { vehicle, resourceImages, manPower } = req.body;
+  const { vehicle, resourceImages, manPower } = req.body;
 
-//     municipality.vehicle = vehicle;
-//     municipality.resourceImages = resourceImages;
-//     municipality.manPower = {
-//       male: parseInt(manPower.male),
-//       female: parseInt(manPower.female)
-//     };
-//     municipality.isProfileComplete = true;
+  municipality.vehicle = vehicle;
+  municipality.resourceImages = resourceImages;
+  municipality.manPower = {
+    male: parseInt(manPower.male),
+    female: parseInt(manPower.female)
+  };
+  municipality.isProfileComplete = true;
 
-//     await municipality.save();
-//
-//   return {
-//     message: 'Municipality profile updated successfully.',
-//     data: municipality
-//   };
-// };
+  await municipality.save();
+
+  return {
+    message: 'Municipality profile updated successfully.',
+    data: municipality
+  };
+};

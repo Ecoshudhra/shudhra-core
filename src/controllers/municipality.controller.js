@@ -1,4 +1,4 @@
-const { requestMunicipality, loginMunicipality, validateOtpMunicipality, getMunicipalityProfile, logoutMunicipality, fetchMunicipalities, updateProfileOfMunicipalities } = require("../service/municipality.service");
+const { requestMunicipality, loginMunicipality, validateOtpMunicipality, getMunicipalityProfile, logoutMunicipality, fetchMunicipalities, updateProfileOfMunicipalities, approveMunicipalityById, rejectMunicipalityById } = require("../service/municipality.service");
 
 // Handle request for municipality approval
 exports.municipalityRequest = (io) => async (req, res) => {
@@ -88,14 +88,14 @@ exports.rejectMunicipality = (io) => async (req, res) => {
 }
 
 
-// exports.updateMunicipalityProfile = async (req, res) => {
-//   try {
-//     const result = await updateProfileOfMunicipalities(req, req.params.id);
-//     return res.status(200).json(result);
-//   } catch (error) {
-//     console.error('[ERROR] Failed to fetch municipalities:', error);
-//     return res.status(error.statusCode || 500).json({ message: error.message });
-//   }
-// };
+exports.updateMunicipalityProfile = async (req, res) => {
+  try {
+    const result = await updateProfileOfMunicipalities(req, req.params.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('[ERROR] Failed to fetch municipalities:', error);
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+};
 
 

@@ -5,6 +5,7 @@ const authMiddleware = (roles) => {
     return async (req, res, next) => {
         try {
             const authHeader = req.headers?.authorization || req.body?.authorization;
+
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 return res.status(401).json({ message: 'Access denied. No token provided.' });
             }
@@ -28,7 +29,7 @@ const authMiddleware = (roles) => {
             }
 
             req.user = {
-                _id: decoded._id,
+                _id: decoded.id,
                 role: decoded.type,
                 ...decoded
             };

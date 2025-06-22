@@ -1,118 +1,107 @@
-const { validationResult } = require('express-validator');
-const Otp = require("../models/OTP.model")
-const Citizen = require('../models/Citizen.model');
-const BlacklistedToken = require('../models/BlacklistedToken.model')
-const { hashPassword, comparePassword } = require('../utils/password.util');
-const { generateOtp, sendOtpEmail } = require('./mail/otp.service');
-const { createToken, verifyToken } = require('../utils/jwt.util');
+const Otp = require("../models/OTP.model");
+const Citizen = require("../models/Citizen.model");
+const BlacklistedToken = require("../models/BlacklistedToken.model");
+const { hashPassword, comparePassword } = require("../utils/password.util");
+const { generateOtp, sendOtpEmail } = require("./mail/otp.service");
+const { createToken, verifyToken } = require("../utils/jwt.util");
 
-// Register new Citizen (signup)
-exports.registerCitizen = async (req, io) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        throw { message: errors.array()[0].msg, statusCode: 422 };
-    }
+// Register ✔
+exports.registerCitizenService = async (data, io) => {
+    const { name, email, phone, password } = data;
 
-    const { name, email, phone, password } = req.body;
-
-    const existing = await Citizen.findOne({ $or: [{ email: email }, { phone: phone }] });
-    if (existing) {
-        throw { message: 'Citizen with this email or phone already exists', statusCode: 400 };
-    }
+    const existing = await Citizen.findOne({ $or: [{ email }, { phone }] });
+    if (existing) throw { message: 'Citizen with this email or phone already exists', statusCode: 400 };
 
     const hashedPassword = await hashPassword(password);
 
-    const citizen = new Citizen({
-        name,
-        email,
-        phone,
-        password: hashedPassword,
-    });
-
+    const citizen = new Citizen({ name, email, phone, password: hashedPassword });
     await citizen.save();
-    delete citizen._doc.password;
 
-    return { message: 'Citizen registered successfully', citizen };
+    delete citizen._doc.password;
+    return { success: true, message: 'Citizen registered successfully', citizen };
 };
 
-// Login Citizen (send OTP)
-exports.loginCitizen = async (req, io) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        throw { message: errors.array()[0].msg, statusCode: 422 };
-    }
-    const { email, password } = req.body;
-
+// Login (send OTP) ✔
+exports.loginCitizenService = async ({ email, password }, io) => {
     const citizen = await Citizen.findOne({ email });
-    if (!citizen) {
-        throw { message: 'Citizen not found', statusCode: 404 };
-    }
+    if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
 
     const isMatch = await comparePassword(password, citizen.password);
-    if (!isMatch) {
-        throw { message: 'Invalid password', statusCode: 401 };
-    }
+    if (!isMatch) throw { message: 'Invalid password', statusCode: 401 };
 
+    await Otp.deleteMany({ email });
     const otp = generateOtp();
 
-    await Otp.create({
-        email,
-        otp,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-    });
-
+    await Otp.create({ email, otp, expiresAt: new Date(Date.now() + 3 * 60 * 1000) });
     await sendOtpEmail(email, otp);
 
-    return { message: `OTP sent to email ${email}(Citizen) . Please verify to complete login.` };
+    return { success: true, message: `OTP sent to ${email}` };
 };
 
-// OTP Validation and JWT token generation of Citizen
-exports.validateOtpCitizen = async (req, io) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        throw { message: errors.array()[0].msg, statusCode: 422 };
-    }
-
-    const { otp, email } = req.body;
-
+// Validate OTP ✔
+exports.validateOtpService = async ({ email, otp }, io) => {
     const validOtp = await Otp.findOne({ email, otp });
-    if (!validOtp) {
-        throw { message: 'Invalid OTP', statusCode: 400 };
-    }
-
+    if (!validOtp) throw { message: 'Invalid OTP', statusCode: 400 };
     if (validOtp.expiresAt < new Date()) {
         await Otp.deleteOne({ _id: validOtp._id });
         throw { message: 'OTP has expired', statusCode: 400 };
     }
 
-    await Otp.deleteOne({ _id: validOtp._id });
+    await Otp.deleteOne({ email });
 
     const citizen = await Citizen.findOne({ email });
     const token = createToken({ id: citizen._id, email: citizen.email, type: 'citizen' });
 
-    return {
-        message: 'OTP verified, login successful',
+    return { success: true, message: 'OTP verified', token, citizen };
+};
+
+// Send OTP ✔
+exports.sendOtpService = async ({ email }, io) => {
+    const citizen = await Citizen.findOne({ email });
+    if (!citizen) throw { message: 'User not found', statusCode: 404 };
+
+    await Otp.deleteMany({ email });
+    const otp = generateOtp();
+
+    await Otp.create({ email, otp, expiresAt: new Date(Date.now() + 3 * 60 * 1000) });
+    await sendOtpEmail(email, otp);
+
+    return { success: true, message: `OTP resent to ${email}` };
+};
+
+// Reset Password ✔
+exports.resetPasswordService = async ({ email, newPassword }, io, authHeader) => {
+    const citizen = await Citizen.findOne({ email });
+    const token = authHeader?.split(' ')[1];
+    const decoded = verifyToken(token);
+
+    if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
+
+    const isSame = await comparePassword(newPassword, citizen.password);
+    if (isSame) throw { message: 'New password cannot be the same as the current password', statusCode: 400 };
+
+    citizen.password = await hashPassword(newPassword);
+    await citizen.save();
+    await BlacklistedToken.create({
         token,
-        citizen: {
-            id: citizen._id,
-            name: citizen.name,
-            email: citizen.email,
-        },
-    };
+        expiresAt: new Date(decoded.exp * 1000),
+    });
+
+
+    return { success: true, message: 'Password has been reset successfully' };
 };
 
-// Profile fetch of Citizen
-exports.getCitizenProfile = async (citizenId) => {
-    const citizen = await Citizen.findById(citizenId).select('-password');
-    if (!citizen) {
-        throw { message: 'Citizen not found', statusCode: 404 };
-    }
-    return { profile: citizen };
+// Profile ✔
+exports.getCitizenProfileService = async (citizenId) => {
+    const citizen = await Citizen.findById(citizenId).select('-password').lean();
+    if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
+
+    return { success: true, citizen };
 };
 
-// Logout and blacklist token of Citizen
-exports.logoutCitizen = async (authHeader) => {
-    const token = authHeader.split(' ')[1];
+// Logout ✔
+exports.logoutCitizenService = async (authHeader) => {
+    const token = authHeader?.split(' ')[1];
     const decoded = verifyToken(token);
 
     await BlacklistedToken.create({
@@ -120,5 +109,27 @@ exports.logoutCitizen = async (authHeader) => {
         expiresAt: new Date(decoded.exp * 1000),
     });
 
-    return { message: 'Logged out successfully' };
+    return { success: true, message: 'Logged out successfully' };
+};
+
+// Update Address ✔
+exports.updateCitizenAddressService = async (citizenId, body) => {
+    const citizen = await Citizen.findById(citizenId);
+    if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
+
+    const { coordinates, state, district, city, address, pincode } = body;
+
+    citizen.location = {
+        type: 'Point',
+        coordinates,
+        state,
+        district,
+        city,
+        address,
+        pincode,
+    };
+    citizen.isLocationUpdated = true;
+    await citizen.save();
+
+    return { success: true, message: 'Address updated successfully', citizen };
 };

@@ -17,7 +17,7 @@ module.exports = function (io) {
     router.get('/all', authMiddleware(['admin', 'citizen', 'municipality']), controllers.getAllMunicipalities(io));
     router.post('/:id/approve', authMiddleware(['admin']), controllers.approveMunicipality(io))
     router.post('/:id/reject', authMiddleware(['admin']), controllers.rejectMunicipality(io))
-    // router.patch('/profile/once/:id', validateMunicipalityProfileUpdate, authMiddleware(['admin', 'municipality']), controllers.updateMunicipalityProfile);
+    router.patch('/profile/once/:id', validateMunicipalityProfileUpdate, authMiddleware(['admin', 'municipality']), controllers.updateMunicipalityProfile);
 
     return router;
 }
