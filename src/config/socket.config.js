@@ -5,9 +5,16 @@ let io;
 
 const setupSocket = (app) => {
     const server = http.createServer(app);
+    const allowedOrigins = [
+        process.env.CLIENT_URL_ADMIN,
+        process.env.CLIENT_URL_MUNICIPALITY,
+        "http://localhost:5173",
+        // todo : add for mobile app
+    ].filter(Boolean);
+
     io = new Server(server, {
         cors: {
-            origin: process.env.CLIENT_URL,
+            origin: allowedOrigins,
             methods: ["GET", "POST"]
         }
     });

@@ -5,10 +5,17 @@
   "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "server",
+    "express",
+    "node",
+    "js",
+    "api",
+    "restful"
+  ],
+  "author": "Rounak Basak",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

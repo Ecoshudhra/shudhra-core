@@ -18,15 +18,15 @@ setupSocket(app);
 const io = app.get("io");
 const server = app.get("server");
 
-app.get("/", (req, res) => res.send("welcome to the server"));
+app.get("/", (req, res) => res.send("welcome to the ecoshudhra core 💕"));
 
-const adminRoute = require('./src/routes/admin.routes')(io);
-app.use(`/${process.env.SERVER_STARTER_URL}/admin`, adminRoute);
+const adminRoute = require('./src/routes/admin.routes')(io); // ✌
+app.use(`/${process.env.SERVER_STARTER_URL}/admin`, adminRoute); 
 
-const municipalityRoute = require('./src/routes/municipality.routes')(io);
+const municipalityRoute = require('./src/routes/municipality.routes')(io); // ✌
 app.use(`/${process.env.SERVER_STARTER_URL}/municipality/`, municipalityRoute);
 
-const citizenRoute = require('./src/routes/citizen.routes')(io);
+const citizenRoute = require('./src/routes/citizen.routes')(io); // ✌
 app.use(`/${process.env.SERVER_STARTER_URL}/citizen`, citizenRoute);
 
 const garbageRoute = require('./src/routes/garbage.routes')(io);

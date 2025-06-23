@@ -61,9 +61,21 @@ exports.validateMunicipalityLogin = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
-exports.validateMunicipalityLoginWithOTP = [
+
+exports.validateMunicipalityOtpVerification = [
   body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
   body('otp').notEmpty().withMessage('Otp is required'),
+];
+
+exports.validateMunicipalitySendOtpRequest = [
+  body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
+];
+
+exports.validateMunicipalityPassword = [
+  body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
+  body('newPassword')
+    .notEmpty().withMessage('New password is required')
+    .isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
 ];
 
 exports.validateMunicipalityProfileUpdate = [

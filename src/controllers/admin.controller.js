@@ -1,8 +1,12 @@
-const Municipality = require("../models/Municipality.model");
-const { registerAdmin, loginAdmin, validateOtpAdmin, getAdminProfile, logoutAdmin, approveMunicipalityById, rejectMunicipalityById } = require("../service/admin.service");
+const { validationResult } = require("express-validator");
+const { registerAdmin, loginAdmin, validateOtpAdmin, getAdminProfile, logoutAdmin } = require("../service/admin.service");
 
-// Handle request for Admin register
 exports.adminRegister = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
+
   try {
     const result = await registerAdmin(req, io);
     return res.status(201).json(result);
@@ -11,8 +15,12 @@ exports.adminRegister = (io) => async (req, res) => {
   }
 };
 
-// Login with email and password (sends OTP) of Admin
 exports.adminLogin = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
+
   try {
     const result = await loginAdmin(req, io);
     return res.status(200).json(result);
@@ -21,9 +29,11 @@ exports.adminLogin = (io) => async (req, res) => {
   }
 };
 
-// OTP validation for Admin
 exports.adminValidateWithOTP = (io) => async (req, res) => {
-  console.log(req.body);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
 
   try {
     const result = await validateOtpAdmin(req, io);
@@ -33,7 +43,6 @@ exports.adminValidateWithOTP = (io) => async (req, res) => {
   }
 };
 
-// Get profile of Admin
 exports.adminProfile = (io) => async (req, res) => {
   try {
     const result = await getAdminProfile(req.user.id);
@@ -43,7 +52,6 @@ exports.adminProfile = (io) => async (req, res) => {
   }
 };
 
-// Logout and blacklist token of Admin
 exports.adminLogout = (io) => async (req, res) => {
   try {
     const token = req.headers?.authorization || req.body?.authorization;

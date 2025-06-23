@@ -1,101 +1,140 @@
-const { requestMunicipality, loginMunicipality, validateOtpMunicipality, getMunicipalityProfile, logoutMunicipality, fetchMunicipalities, updateProfileOfMunicipalities, approveMunicipalityById, rejectMunicipalityById } = require("../service/municipality.service");
+// controllers/municipality.controller.js
+const { validationResult } = require("express-validator");
+const {
+  requestMunicipalityService,
+  loginMunicipalityService,
+  validateMunicipalityOtpService,
+  sendMunicipalityOtpService,
+  resetMunicipalityPasswordService,
+  getMunicipalityProfileService,
+  logoutMunicipalityService,
+  fetchMunicipalitiesService,
+  approveMunicipalityService,
+  rejectMunicipalityService,
+  updateMunicipalityProfileService
+} = require("../service/municipality.service");
 
-// Handle request for municipality approval
 exports.municipalityRequest = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
   try {
-    const result = await requestMunicipality(req, io);
-    return res.status(201).json(result);
-  } catch (error) {
-    return res.status(error.statusCode || 500).json({ message: error.message });
+    const result = await requestMunicipalityService(req.body, io);
+    return res.status(201).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
-// Login with email and password (sends OTP)
 exports.municipalityLogin = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
   try {
-    const { email, password } = req.body;
-    const result = await loginMunicipality(req, email, password);
-    return res.status(200).json(result);
-  } catch (error) {
-    return res.status(error.statusCode || 400).json({ message: error.message });
+    const result = await loginMunicipalityService(req.body, io);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
-// OTP validation
-exports.municipalityValidateWithOTP = (io) => async (req, res) => {
+exports.municipalityValidateOtp = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
   try {
-    const { email, otp } = req.body;
-    const result = await validateOtpMunicipality(req, email, otp);
-    return res.status(200).json(result);
-  } catch (error) {
-    return res.status(error.statusCode || 400).json({ message: error.message });
+    const result = await validateMunicipalityOtpService(req.body, io);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
-// Get profile
+exports.sendOtp = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
+  try {
+    const result = await sendMunicipalityOtpService(req.body, io);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+exports.resetPassword = (io) => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
+  try {
+    const token = req.headers.authorization;
+    const result = await resetMunicipalityPasswordService({ ...req.body }, io, token);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
 exports.municipalityProfile = () => async (req, res) => {
   try {
-    const result = await getMunicipalityProfile(req.user.id);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('[ERROR] Failed to get profile of municipalities:', error);
-    return res.status(error.statusCode || 500).json({ message: error.message });
+    const result = await getMunicipalityProfileService(req.user.id);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
-// Logout and blacklist token
 exports.municipalityLogout = () => async (req, res) => {
   try {
-    const token = req.headers?.authorization || req.body?.authorization;
-    const result = await logoutMunicipality(token);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('[ERROR] Failed to logout municipalities:', error);
-    return res.status(error.statusCode || 500).json({ message: error.message });
-  }
-};
-
-exports.getAllMunicipalities = (io) => async (req, res) => {
-  try {
-    const result = await fetchMunicipalities(req.query);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('[ERROR] Failed to fetch municipalities:', error);
-    return res.status(error.statusCode || 500).json({ message: error.message });
-  }
-};
-
-exports.approveMunicipality = (io) => async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await approveMunicipalityById(id);
-    res.status(200).json(result);
+    const token = req.headers.authorization;
+    const result = await logoutMunicipalityService(token);
+    return res.status(200).json({ success: true, ...result });
   } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-}
-
-exports.rejectMunicipality = (io) => async (req, res) => {
-  try {
-    const { id } = req.params;
-    const reason = req.body?.reason;
-
-    const result = await rejectMunicipalityById(id, reason);
-    res.status(200).json(result);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-}
-
-
-exports.updateMunicipalityProfile = async (req, res) => {
-  try {
-    const result = await updateProfileOfMunicipalities(req, req.params.id);
-    return res.status(200).json(result);
-  } catch (error) {
-    console.error('[ERROR] Failed to fetch municipalities:', error);
-    return res.status(error.statusCode || 500).json({ message: error.message });
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }
 };
 
+exports.getAllMunicipalities = () => async (req, res) => {
+  try {
+    const result = await fetchMunicipalitiesService(req.query);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
 
+exports.approveMunicipality = () => async (req, res) => {
+  try {
+    const result = await approveMunicipalityService(req.params.id);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+exports.rejectMunicipality = () => async (req, res) => {
+  try {
+    const result = await rejectMunicipalityService(req.params.id, req.body.reason);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};
+
+exports.updateMunicipalityProfile = () => async (req, res) => {
+  const errors = validationResult(req);
+  if (errors.isEmpty() === false) {
+    return res.status(422).json({ success: false, message: errors.array()[0].msg });
+  }
+  try {
+    const result = await updateMunicipalityProfileService(req.body, req.params.id);
+    return res.status(200).json({ success: true, ...result });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+};

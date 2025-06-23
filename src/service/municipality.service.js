@@ -1,158 +1,130 @@
-const Municipality = require('../models/Municipality.model');
-const BlacklistedToken = require('../models/BlacklistedToken.model');
-const Otp = require('../models/OTP.model');
-const { hashPassword, comparePassword } = require('../utils/password.util');
-const { createToken, verifyToken } = require('../utils/jwt.util');
-const { generateOtp, sendOtpEmail } = require('./mail/otp.service');
-const { validationResult } = require('express-validator');
-const mongoose = require('mongoose');
-const Notification = require('../models/Notification.model');
-const sendNotification = require('../utils/sendNotification');
-const { sendMunicipalityApprovedEmail, sendMunicipalityRejectEmail } = require('./mail/municipalityStatus.service');
+const Municipality = require("../models/Municipality.model");
+const Otp = require("../models/OTP.model");
+const BlacklistedToken = require("../models/BlacklistedToken.model");
+const { hashPassword, comparePassword } = require("../utils/password.util");
+const { createToken, verifyToken } = require("../utils/jwt.util");
+const { generateOtp, sendOtpEmail } = require("./mail/otp.service");
+const sendNotification = require("../utils/sendNotification");
+const { sendMunicipalityApprovedEmail, sendMunicipalityRejectEmail } = require("./mail/municipalityStatus.service");
+const mongoose = require("mongoose");
 
-// Request new municipality (signup)
-exports.requestMunicipality = async (req, io) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    throw { message: errors.array()[0].msg, statusCode: 422 };
-  }
 
-  const { name, email, phone, password, type, ulbCode, registrationNumber, govCertificateUrl, location: { zone, coordinates, state, district, city, address, pincode, wardNumber } } = req.body;
+exports.requestMunicipalityService = async (data, io) => {
+  const { name, email, phone, password, type, ulbCode, registrationNumber, govCertificateUrl, location } = data;
 
-  const existing = await Municipality.findOne({ $or: [{ primaryEmail: email }, { secondaryEmail: email }, { phone: phone }, { registrationNumber: registrationNumber }, { ulbCode: ulbCode }] });
-
-  if (existing) {
-    throw { message: 'Municipality with this Data already exists', statusCode: 400 };
-  }
+  const existing = await Municipality.findOne({
+    $or: [
+      { primaryEmail: email }, { secondaryEmail: email },
+      { phone }, { registrationNumber },
+      { ulbCode }
+    ]
+  });
+  if (existing) throw { message: "Duplicate municipality", statusCode: 400 };
 
   const hashedPassword = await hashPassword(password);
-
   const municipality = new Municipality({
-    name,
-    primaryEmail: email,
-    phone,
-    password: hashedPassword,
-
-    type,
-    ulbCode,
-    ...(registrationNumber ? { registrationNumber } : {}),
-    ...(govCertificateUrl ? { govCertificateUrl } : {}),
-
-    location: {
-      zone,
-      coordinates,
-      state,
-      district,
-      city,
-      address,
-      pincode,
-      wardNumber
-    },
-    status: 'pending',
+    name, primaryEmail: email, phone, password: hashedPassword,
+    type, ulbCode, registrationNumber, govCertificateUrl,
+    location, status: "pending"
   });
-
   await municipality.save();
 
-  // Send notification to all Admins
   await sendNotification({
     io,
     receiverId: null,
-    receiverType: 'Admin',
-    message: `New Municipality Request: ${municipality.name}`,
-    link: `/admin/municipality/`
+    receiverType: "Admin",
+    message: `New Municipality Request: ${name}`,
+    link: "/admin/municipality"
   });
 
-
-  return { message: 'Request submitted successfully', municipality };
+  return { message: "Request submitted successfully", municipality };
 };
 
-// // Login municipality (send OTP)
-exports.loginMunicipality = async (req, email, password) => {
 
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    throw { message: errors.array()[0].msg, statusCode: 422 };
-  }
-
-  const municipality = await Municipality.findOne({ $or: [{ primaryEmail: email }, { secondaryEmail: email }] });
-  if (!municipality) {
-    throw { message: 'Municipality not found', statusCode: 404 };
-  }
-
-  if (municipality.status !== 'approved') {
-    throw { message: 'Account not approved yet', statusCode: 403 };
-  }
+exports.loginMunicipalityService = async ({ email, password }, io) => {
+  const municipality = await Municipality.findOne({
+    $or: [{ primaryEmail: email }, { secondaryEmail: email }]
+  });
+  if (!municipality) throw { message: "municipality Not found", statusCode: 404 };
+  if (municipality.status !== "approved") throw { message: "municipality Not approved", statusCode: 403 };
 
   const isMatch = await comparePassword(password, municipality.password);
-  if (!isMatch) {
-    throw { message: 'Invalid password', statusCode: 401 };
-  }
+  if (!isMatch) throw { message: "Invalid password", statusCode: 401 };
 
   const otp = generateOtp();
 
-  await Otp.create({
-    email,
-    otp,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 min expiry
-  });
-
+  await Otp.deleteMany({ email });
+  await Otp.create({ email, otp, expiresAt: new Date(Date.now() + 3 * 60 * 1000) });
   await sendOtpEmail(email, otp);
 
-  return { message: `OTP sent to email ${email}(Municipality). Please verify to complete login.` };
+  return { message: `OTP sent to ${email}` };
 };
 
-// // OTP Validation and JWT token generation of municipality
-exports.validateOtpMunicipality = async (req, email, otp) => {
-
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    throw { message: errors.array()[0].msg, statusCode: 422 };
+exports.validateMunicipalityOtpService = async ({ email, otp }, io) => {
+  const record = await Otp.findOne({ email, otp });
+  if (!record) throw { message: "Invalid OTP", statusCode: 400 };
+  if (record.expiresAt < new Date()) {
+    await Otp.deleteOne({ _id: record._id });
+    throw { message: "OTP expired", statusCode: 400 };
   }
 
-  const validOtp = await Otp.findOne({ email, otp });
-  if (!validOtp) {
-    throw { message: 'Invalid OTP', statusCode: 400 };
-  }
+  await Otp.deleteMany({ email });
+  const municipality = await Municipality.findOne({
+    $or: [{ primaryEmail: email }, { secondaryEmail: email }]
+  });
+  const token = createToken({ id: municipality._id, email: municipality.primaryEmail, type: "municipality" });
 
-  if (validOtp.expiresAt < new Date()) {
-    await Otp.deleteOne({ _id: validOtp._id });
-    throw { message: 'OTP has expired', statusCode: 400 };
-  }
-
-  await Otp.deleteOne({ _id: validOtp._id });
-
-  const municipality = await Municipality.findOne({ $or: [{ primaryEmail: email }, { secondaryEmail: email }] });
-  const token = createToken({ id: municipality._id, email: municipality.primaryEmail, type: 'municipality' });
-
-  return {
-    message: 'OTP verified, login successful',
-    token,
-    municipality,
-  };
+  return { message: "OTP verified", token, municipality };
 };
 
-// // Profile fetch of municipality
-exports.getMunicipalityProfile = async (userId) => {
-  const municipality = await Municipality.findById(userId).select('-password');
-  if (!municipality) {
-    throw { message: 'Municipality not found', statusCode: 404 };
-  }
-  return { profile: municipality };
+exports.sendMunicipalityOtpService = async ({ email }, io) => {
+  const municipality = await Municipality.findOne({
+    $or: [{ primaryEmail: email }, { secondaryEmail: email }]
+  });
+  if (!municipality) throw { message: "Not found", statusCode: 404 };
+
+  const otp = generateOtp();
+  await Otp.deleteMany({ email });
+  await Otp.create({ email, otp, expiresAt: new Date(Date.now() + 3 * 60 * 1000) });
+  await sendOtpEmail(email, otp);
+
+  return { message: `OTP resent to ${email}` };
 };
 
-// // Logout and blacklist token of municipality
-exports.logoutMunicipality = async (authHeader) => {
-  const token = authHeader?.split(' ')[1];
+exports.resetMunicipalityPasswordService = async ({ email, newPassword }, io, tokenHeader) => {
+  const municipality = await Municipality.findOne({ primaryEmail: email });
+  if (!municipality) throw { message: "Municipality Not found", statusCode: 404 };
+
+  const isSame = await comparePassword(newPassword, municipality.password);
+  if (isSame) throw { message: "Password same as before", statusCode: 400 };
+
+  municipality.password = await hashPassword(newPassword);
+  await municipality.save();
+
+  const token = tokenHeader?.split(" ")[1];
   const decoded = verifyToken(token);
   await BlacklistedToken.create({
     token,
-    expiresAt: new Date(decoded.exp * 1000),
+    expiresAt: new Date(decoded.exp * 1000)
   });
-  return { message: 'Logged out successfully', };
+
+  return { message: "Password reset successfully" };
 };
 
-// fetch all municipalities with Query
-exports.fetchMunicipalities = async (query = {}) => {
+exports.getMunicipalityProfileService = async (id) => {
+  const municipality = await Municipality.findById(id).select("-password").lean();
+  if (!municipality) throw { message: "Not found", statusCode: 404 };
+  return { municipality };
+};
+
+exports.logoutMunicipalityService = async (tokenHeader) => {
+  const token = tokenHeader?.split(" ")[1];
+  const decoded = verifyToken(token);
+  await BlacklistedToken.create({ token, expiresAt: new Date(decoded.exp * 1000) });
+  return { message: "Logged out successfully" };
+};
+
+exports.fetchMunicipalitiesService = async (query = {}) => {
   const {
     lat,
     lon,
@@ -163,15 +135,15 @@ exports.fetchMunicipalities = async (query = {}) => {
     limit = 10
   } = query;
 
-  const pageNumber = parseInt(page) || 1;
-  const pageSize = parseInt(limit) || 10;
+  const pageNumber = parseInt(page, 10) || 1;
+  const pageSize = parseInt(limit, 10) || 10;
   const skip = (pageNumber - 1) * pageSize;
 
   const hasLatLon = lat !== undefined && lon !== undefined;
   const hasOnlyOne = (lat && !lon) || (!lat && lon);
 
   if (hasOnlyOne) {
-    return {
+    throw {
       success: false,
       message: "Both latitude and longitude must be provided together.",
       statusCode: 400
@@ -179,7 +151,8 @@ exports.fetchMunicipalities = async (query = {}) => {
   }
 
   try {
-    let municipalities, totalCount;
+    let municipalities = [];
+    let totalCount = 0;
 
     if (hasLatLon) {
       const parsedLat = parseFloat(lat);
@@ -227,7 +200,7 @@ exports.fetchMunicipalities = async (query = {}) => {
       totalCount = municipalities.length;
 
     } else {
-      // If no lat/lon, just return all municipalities with status and city matching the query
+      // If no lat/lon, just return all municipalities with filters
       const filters = {
         ...(status && status !== 'all' ? { status } : {}),
         ...(city ? { "location.city": { $regex: city, $options: "i" } } : {})
@@ -251,98 +224,58 @@ exports.fetchMunicipalities = async (query = {}) => {
         : "No municipalities found matching the criteria."
     };
   } catch (error) {
-    console.error('[ERROR] fetchMunicipalities:', error);
-    return {
+    console.error('[ERROR] fetchMunicipalitiesService:', error);
+    throw {
       success: false,
       message: "Failed to fetch municipalities.",
-      error: error.message || error
+      statusCode: 500
     };
   }
 };
 
-// approve municipality by id
-exports.approveMunicipalityById = async (municipalityId) => {
+exports.approveMunicipalityService = async (id) => {
+  if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
+  const muni = await Municipality.findById(id);
+  if (!muni) throw { message: "Municipality Not found", statusCode: 404 };
+  if (muni.status === "approved") throw { message: "Municipality Already approved", statusCode: 400 };
 
-  if (!municipalityId || !mongoose.Types.ObjectId.isValid(municipalityId)) {
-    throw { message: 'Invalid municipality id', statusCode: 400 };
-  }
-  const municipality = await Municipality.findById(municipalityId);
-
-  if (!municipality) {
-    throw ({ message: 'Municipality not found', statusCode: 404 });
-  }
-
-  if (municipality.status === 'approved') {
-    throw ({ message: 'Municipality already approved', statusCode: 400 });
-  }
-
-  municipality.status = 'approved';
-  await municipality.save();
-
-  await sendMunicipalityApprovedEmail(municipality.primaryEmail, municipality.name);
-
-  return { message: 'Municipality approved successfully', municipality };
+  muni.status = "approved";
+  await muni.save();
+  await sendMunicipalityApprovedEmail(muni.primaryEmail, muni.name);
+  return { message: "Approved successfully", municipality: muni };
 };
 
-// reject municipality by id
-exports.rejectMunicipalityById = async (municipalityId, rejectReason) => {
+exports.rejectMunicipalityService = async (id, reason) => {
+  if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
+  if (!reason) throw { message: "Reason required", statusCode: 400 };
 
-  if (!municipalityId || !mongoose.Types.ObjectId.isValid(municipalityId)) {
-    throw { message: 'Invalid municipality id', statusCode: 400 };
-  }
-  if (!rejectReason) {
-    throw { message: 'Invalid reject reason', statusCode: 400 };
-  }
-  const municipality = await Municipality.findById(municipalityId);
+  const muni = await Municipality.findById(id);
+  if (!muni) throw { message: "Municipality Not found", statusCode: 404 };
+  if (muni.status === "rejected") throw { message: "Municipality Already rejected", statusCode: 400 };
 
-  if (!municipality) {
-    throw ({ message: 'Municipality not found', statusCode: 404 });
-  }
-
-  if (municipality.status === 'rejected') {
-    throw ({ message: 'Municipality already rejected', statusCode: 400 });
-  }
-
-  municipality.status = 'rejected';
-  await municipality.save();
-
-  await sendMunicipalityRejectEmail(municipality.primaryEmail, municipality.name, rejectReason);
-
-  return { message: 'Municipality rejected successfully', municipality };
+  muni.status = "rejected";
+  await muni.save();
+  await sendMunicipalityRejectEmail(muni.primaryEmail, muni.name, reason);
+  return { message: "Rejected successfully", municipality: muni };
 };
 
-exports.updateProfileOfMunicipalities = async (req, municipalityId) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    throw { message: errors.array()[0].msg, statusCode: 422 };
-  }
+exports.updateMunicipalityProfileService = async (data, id) => {
+  const { vehicle, resourceImages, manPower } = data;
 
-  if (!municipalityId || !mongoose.Types.ObjectId.isValid(municipalityId)) {
-    throw { message: 'Invalid municipality id', statusCode: 400 };
-  }
+  if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
 
-  const municipality = await Municipality.findById(municipalityId);
-  if (!municipality) {
-    throw { message: 'Municipality not found.', statusCode: 404 };
-  }
-  if (municipality.isProfileComplete) {
-    throw { message: 'Profile is already complete you cannot update it.', statusCode: 400 };
-  }
+  const muni = await Municipality.findById(id);
+  if (!muni) throw { message: "Not found", statusCode: 404 };
+  if (muni.isProfileComplete) throw { message: "Profile already complete", statusCode: 400 };
 
-  const { vehicle, resourceImages, manPower } = req.body;
-
-  municipality.vehicle = vehicle;
-  municipality.resourceImages = resourceImages;
-  municipality.manPower = {
-    male: parseInt(manPower.male),
-    female: parseInt(manPower.female)
+  muni.vehicle = vehicle;
+  muni.resourceImages = resourceImages;
+  muni.manPower = {
+    male: parseInt(manPower.male, 10),
+    female: parseInt(manPower.female, 10)
   };
-  municipality.isProfileComplete = true;
+  muni.isProfileComplete = true;
+  await muni.save();
 
-  await municipality.save();
-
-  return {
-    message: 'Municipality profile updated successfully.',
-    data: municipality
-  };
+  return { message: "Profile updated successfully", municipality: muni };
 };

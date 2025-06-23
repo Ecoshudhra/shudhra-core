@@ -1,10 +1,10 @@
 const cron = require('cron');
-const http = require('http');
+const http = require('https');
 const Citizen = require("../models/Citizen.model");
 
 const keepAliveJob = new cron.CronJob("*/14 * * * *", function () {
     http
-        .get(`${process.env.SERVER_URL}`, (res) => {
+        .get(`https://ecoshudhra-0bwb.onrender.com/`, (res) => {
             if (res.statusCode === 200) {
                 console.log('[CRON] ✅ Server ping successful');
             } else {

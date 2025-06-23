@@ -10,9 +10,8 @@ module.exports = function (io) {
     router.post('/auth/login', validateCitizenLogin, controllers.citizenLogin(io));
     router.post('/auth/verify-otp', validateCitizenOtpVerification, controllers.citizenValidateWithOTP(io));
 
-    router.post('/auth/send-otp', validateCitizenSendOtpRequest, controllers.sendOtp(io)); // explicitly send otp to citizen
+    router.post('/auth/send-otp', validateCitizenSendOtpRequest, controllers.sendOtp(io));
     router.patch('/auth/reset-password', validateCitizenResetPassword, authMiddleware(['citizen', 'admin']), controllers.resetPassword(io));
-
 
     router.get('/auth/profile', authMiddleware(['citizen']), controllers.citizenProfile(io));
     router.get('/auth/logout', authMiddleware(['citizen']), controllers.citizenLogout(io));
