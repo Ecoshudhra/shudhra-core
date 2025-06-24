@@ -47,7 +47,7 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
                 near: { type: "Point", coordinates: [lon, lat] },
                 distanceField: "distance",
                 spherical: true,
-                maxDistance: process.env.MAX_DISTANCE_TO_FIND_MUNICIPALITY || 20000, // 20 km
+                // maxDistance: process.env.MAX_DISTANCE_TO_FIND_MUNICIPALITY || 20000, // 20 km
                 query: { status: "approved" }
             }
         },
