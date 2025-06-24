@@ -1,6 +1,6 @@
 const { body } = require('express-validator');
 
-exports.validateCitizenRegister = [ //  ✔
+exports.validateCitizenRegister = [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
   body('phone')
@@ -9,7 +9,7 @@ exports.validateCitizenRegister = [ //  ✔
   body('password').notEmpty().withMessage("password is required").isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
 ];
 
-exports.validateCitizenLogin = [ //  ✔
+exports.validateCitizenLogin = [
   body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
   body('password').notEmpty().withMessage('Password is required'),
 ];

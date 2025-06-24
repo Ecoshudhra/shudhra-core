@@ -5,7 +5,7 @@ const { hashPassword, comparePassword } = require("../utils/password.util");
 const { generateOtp, sendOtpEmail } = require("./mail/otp.service");
 const { createToken, verifyToken } = require("../utils/jwt.util");
 
-// Register ✔
+
 exports.registerCitizenService = async (data, io) => {
     const { name, email, phone, password } = data;
 
@@ -18,10 +18,9 @@ exports.registerCitizenService = async (data, io) => {
     await citizen.save();
 
     delete citizen._doc.password;
-    return { success: true, message: 'Citizen registered successfully', citizen };
+    return { message: 'Citizen registered successfully', citizen };
 };
 
-// Login (send OTP) ✔
 exports.loginCitizenService = async ({ email, password }, io) => {
     const citizen = await Citizen.findOne({ email });
     if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
@@ -35,10 +34,9 @@ exports.loginCitizenService = async ({ email, password }, io) => {
     await Otp.create({ email, otp, expiresAt: new Date(Date.now() + 3 * 60 * 1000) });
     await sendOtpEmail(email, otp);
 
-    return { success: true, message: `OTP sent to ${email}` };
+    return { message: `OTP sent to ${email}` };
 };
 
-// Validate OTP ✔
 exports.validateOtpService = async ({ email, otp }, io) => {
     const validOtp = await Otp.findOne({ email, otp });
     if (!validOtp) throw { message: 'Invalid OTP', statusCode: 400 };
@@ -52,10 +50,9 @@ exports.validateOtpService = async ({ email, otp }, io) => {
     const citizen = await Citizen.findOne({ email });
     const token = createToken({ id: citizen._id, email: citizen.email, type: 'citizen' });
 
-    return { success: true, message: 'OTP verified', token, citizen };
+    return { message: 'OTP verified', token, citizen };
 };
 
-// Send OTP ✔
 exports.sendOtpService = async ({ email }, io) => {
     const citizen = await Citizen.findOne({ email });
     if (!citizen) throw { message: 'User not found', statusCode: 404 };
@@ -69,7 +66,6 @@ exports.sendOtpService = async ({ email }, io) => {
     return { success: true, message: `OTP resent to ${email}` };
 };
 
-// Reset Password ✔
 exports.resetPasswordService = async ({ email, newPassword }, io, authHeader) => {
     const citizen = await Citizen.findOne({ email });
     const token = authHeader?.split(' ')[1];
@@ -88,10 +84,9 @@ exports.resetPasswordService = async ({ email, newPassword }, io, authHeader) =>
     });
 
 
-    return { success: true, message: 'Password has been reset successfully' };
+    return { message: 'Password has been reset successfully' };
 };
 
-// Profile ✔
 exports.getCitizenProfileService = async (citizenId) => {
     const citizen = await Citizen.findById(citizenId).select('-password').lean();
     if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
@@ -99,7 +94,6 @@ exports.getCitizenProfileService = async (citizenId) => {
     return { success: true, citizen };
 };
 
-// Logout ✔
 exports.logoutCitizenService = async (authHeader) => {
     const token = authHeader?.split(' ')[1];
     const decoded = verifyToken(token);
@@ -109,10 +103,9 @@ exports.logoutCitizenService = async (authHeader) => {
         expiresAt: new Date(decoded.exp * 1000),
     });
 
-    return { success: true, message: 'Logged out successfully' };
+    return { message: 'Logged out successfully' };
 };
 
-// Update Address ✔
 exports.updateCitizenAddressService = async (citizenId, body) => {
     const citizen = await Citizen.findById(citizenId);
     if (!citizen) throw { message: 'Citizen not found', statusCode: 404 };
@@ -131,5 +124,5 @@ exports.updateCitizenAddressService = async (citizenId, body) => {
     citizen.isLocationUpdated = true;
     await citizen.save();
 
-    return { success: true, message: 'Address updated successfully', citizen };
+    return { message: 'Address updated successfully', citizen };
 };

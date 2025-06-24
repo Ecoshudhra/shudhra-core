@@ -35,8 +35,6 @@ app.use(`/${process.env.SERVER_STARTER_URL}/garbage`, garbageRoute);
 const notificationRoute = require('./src/routes/notification.routes');
 app.use(`/${process.env.SERVER_STARTER_URL}/notification`, notificationRoute);
 
-
-// Start Server
 connectDB().then(() => {
     server.listen(process.env.PORT, () => {
         console.log(`🚀 Server running at ${process.env.SERVER_URL}`);

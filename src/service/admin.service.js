@@ -10,7 +10,7 @@ exports.registerAdmin = async (req, io) => {
 
     const existing = await Admin.findOne({ email });
     if (existing) {
-        throw { success: false, message: 'Admin with this email already exists', statusCode: 400 };
+        throw { message: 'Admin with this email already exists', statusCode: 400 };
     }
 
     const hashedPassword = await hashPassword(password);
@@ -25,7 +25,7 @@ exports.registerAdmin = async (req, io) => {
     await admin.save();
     delete admin._doc.password;
 
-    return { success: true, message: 'Admin registered successfully', admin };
+    return { message: 'Admin registered successfully', admin };
 };
 
 exports.loginAdmin = async (req, io) => {
@@ -33,12 +33,12 @@ exports.loginAdmin = async (req, io) => {
 
     const admin = await Admin.findOne({ email });
     if (!admin) {
-        throw { success: false, message: 'Admin not found', statusCode: 404 };
+        throw { message: 'Admin not found', statusCode: 404 };
     }
 
     const isMatch = await comparePassword(password, admin.password);
     if (!isMatch) {
-        throw { success: false, message: 'Invalid password', statusCode: 401 };
+        throw { message: 'Invalid password', statusCode: 401 };
     }
 
     await Otp.deleteMany({ email });
@@ -52,7 +52,7 @@ exports.loginAdmin = async (req, io) => {
 
     await sendOtpEmail(email, otp);
 
-    return { success: true, message: `OTP sent to ${email}. Please verify to complete login.` };
+    return { message: `OTP sent to ${email}. Please verify to complete login.` };
 };
 
 exports.validateOtpAdmin = async (req, io) => {
@@ -61,12 +61,12 @@ exports.validateOtpAdmin = async (req, io) => {
     const validOtp = await Otp.findOne({ email, otp });
 
     if (!validOtp) {
-        throw { success: false, message: 'Invalid OTP', statusCode: 400 };
+        throw { message: 'Invalid OTP', statusCode: 400 };
     }
 
     if (validOtp.expiresAt < new Date()) {
         await Otp.deleteOne({ _id: validOtp._id });
-        throw { success: false, message: 'OTP has expired', statusCode: 400 };
+        throw { message: 'OTP has expired', statusCode: 400 };
     }
 
     await Otp.deleteMany({ email });
@@ -75,7 +75,6 @@ exports.validateOtpAdmin = async (req, io) => {
     const token = createToken({ id: admin._id, email: admin.email, type: 'admin' });
 
     return {
-        success: true,
         message: 'OTP verified successfully',
         token,
         admin,
@@ -85,9 +84,9 @@ exports.validateOtpAdmin = async (req, io) => {
 exports.getAdminProfile = async (userId) => {
     const admin = await Admin.findById(userId).select('-password').lean();
     if (!admin) {
-        throw { success: false, message: 'Admin not found', statusCode: 404 };
+        throw { message: 'Admin not found', statusCode: 404 };
     }
-    return { admin, success: true };
+    return { admin };
 };
 
 exports.logoutAdmin = async (authHeader) => {
@@ -99,5 +98,5 @@ exports.logoutAdmin = async (authHeader) => {
         expiresAt: new Date(decoded.exp * 1000),
     });
 
-    return { message: 'Logged out successfully', success: true };
+    return { message: 'Logged out successfully' };
 };

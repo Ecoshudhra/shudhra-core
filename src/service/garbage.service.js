@@ -47,7 +47,7 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
                 near: { type: "Point", coordinates: [lon, lat] },
                 distanceField: "distance",
                 spherical: true,
-                // maxDistance: 20000 // 20 km
+                maxDistance: process.env.MAX_DISTANCE_TO_FIND_MUNICIPALITY || 20000, // 20 km
                 query: { status: "approved" }
             }
         },
@@ -114,8 +114,6 @@ exports.GarbageByCitizen = async (citizenId, query) => {
     const filter = { reportedBy: citizenId };
     if (query.status) filter.status = query.status;
     if (query.type) filter.type = query.type;
-    console.log(filter);
-
 
     return await GarbageReport.find(filter).sort({ createdAt: -1 });
 };
@@ -141,7 +139,6 @@ exports.garbageById = async (id) => {
         .populate('reportedBy')
         .populate('assignedToMunicipality');
 };
-
 
 exports.updateGarbageStatusService = async (garbageId, status, req, io) => {
     const errors = validationResult(req);

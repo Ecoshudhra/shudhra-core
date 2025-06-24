@@ -40,7 +40,6 @@ exports.requestMunicipalityService = async (data, io) => {
   return { message: "Request submitted successfully", municipality };
 };
 
-
 exports.loginMunicipalityService = async ({ email, password }, io) => {
   const municipality = await Municipality.findOne({
     $or: [{ primaryEmail: email }, { secondaryEmail: email }]
@@ -144,7 +143,6 @@ exports.fetchMunicipalitiesService = async (query = {}) => {
 
   if (hasOnlyOne) {
     throw {
-      success: false,
       message: "Both latitude and longitude must be provided together.",
       statusCode: 400
     };
@@ -160,7 +158,6 @@ exports.fetchMunicipalitiesService = async (query = {}) => {
 
       if (isNaN(parsedLat) || isNaN(parsedLon)) {
         throw {
-          success: false,
           message: "Invalid latitude or longitude.",
           statusCode: 400
         };
@@ -214,7 +211,6 @@ exports.fetchMunicipalitiesService = async (query = {}) => {
     }
 
     return {
-      success: true,
       total: totalCount,
       page: pageNumber,
       limit: pageSize,
@@ -226,7 +222,6 @@ exports.fetchMunicipalitiesService = async (query = {}) => {
   } catch (error) {
     console.error('[ERROR] fetchMunicipalitiesService:', error);
     throw {
-      success: false,
       message: "Failed to fetch municipalities.",
       statusCode: 500
     };
@@ -235,28 +230,28 @@ exports.fetchMunicipalitiesService = async (query = {}) => {
 
 exports.approveMunicipalityService = async (id) => {
   if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
-  const muni = await Municipality.findById(id);
-  if (!muni) throw { message: "Municipality Not found", statusCode: 404 };
-  if (muni.status === "approved") throw { message: "Municipality Already approved", statusCode: 400 };
+  const municipality = await Municipality.findById(id);
+  if (!municipality) throw { message: "Municipality Not found", statusCode: 404 };
+  if (municipality.status === "approved") throw { message: "Municipality Already approved", statusCode: 400 };
 
-  muni.status = "approved";
-  await muni.save();
-  await sendMunicipalityApprovedEmail(muni.primaryEmail, muni.name);
-  return { message: "Approved successfully", municipality: muni };
+  municipality.status = "approved";
+  await municipality.save();
+  await sendMunicipalityApprovedEmail(municipality.primaryEmail, municipality.name);
+  return { message: "Approved successfully", municipality: municipality };
 };
 
 exports.rejectMunicipalityService = async (id, reason) => {
   if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
   if (!reason) throw { message: "Reason required", statusCode: 400 };
 
-  const muni = await Municipality.findById(id);
-  if (!muni) throw { message: "Municipality Not found", statusCode: 404 };
-  if (muni.status === "rejected") throw { message: "Municipality Already rejected", statusCode: 400 };
+  const municipality = await Municipality.findById(id);
+  if (!municipality) throw { message: "Municipality Not found", statusCode: 404 };
+  if (municipality.status === "rejected") throw { message: "Municipality Already rejected", statusCode: 400 };
 
-  muni.status = "rejected";
-  await muni.save();
-  await sendMunicipalityRejectEmail(muni.primaryEmail, muni.name, reason);
-  return { message: "Rejected successfully", municipality: muni };
+  municipality.status = "rejected";
+  await municipality.save();
+  await sendMunicipalityRejectEmail(municipality.primaryEmail, municipality.name, reason);
+  return { message: "Rejected successfully", municipality: municipality };
 };
 
 exports.updateMunicipalityProfileService = async (data, id) => {
@@ -264,18 +259,18 @@ exports.updateMunicipalityProfileService = async (data, id) => {
 
   if (!mongoose.isValidObjectId(id)) throw { message: "Invalid ID", statusCode: 400 };
 
-  const muni = await Municipality.findById(id);
-  if (!muni) throw { message: "Not found", statusCode: 404 };
-  if (muni.isProfileComplete) throw { message: "Profile already complete", statusCode: 400 };
+  const municipality = await Municipality.findById(id);
+  if (!municipality) throw { message: "Not found", statusCode: 404 };
+  if (municipality.isProfileComplete) throw { message: "Profile already complete", statusCode: 400 };
 
-  muni.vehicle = vehicle;
-  muni.resourceImages = resourceImages;
-  muni.manPower = {
+  municipality.vehicle = vehicle;
+  municipality.resourceImages = resourceImages;
+  municipality.manPower = {
     male: parseInt(manPower.male, 10),
     female: parseInt(manPower.female, 10)
   };
-  muni.isProfileComplete = true;
-  await muni.save();
+  municipality.isProfileComplete = true;
+  await municipality.save();
 
-  return { message: "Profile updated successfully", municipality: muni };
+  return { message: "Profile updated successfully", municipality: municipality };
 };

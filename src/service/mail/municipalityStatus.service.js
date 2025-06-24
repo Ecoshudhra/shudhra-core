@@ -9,7 +9,7 @@ const sendMunicipalityApprovedEmail = async (to, municipalityName) => {
     htmlContent = htmlContent.replace('{{municipalityName}}', municipalityName);
 
     const mailOptions = {
-        from: `"Echo Sudhra" <${process.env.MAIL_USER}>`,
+        from: `"EcoShudhra" <${process.env.MAIL_USER}>`,
         to,
         subject: 'Approve mail',
         html: htmlContent,
@@ -32,7 +32,7 @@ const sendMunicipalityRejectEmail = async (to, municipalityName, rejectionReason
     htmlContent = htmlContent.replace('{{rejectionReason}}', rejectionReason);
 
     const mailOptions = {
-        from: `"Echo Sudhra" <${process.env.MAIL_USER}>`,
+        from: `"EcoShudhra" <${process.env.MAIL_USER}>`,
         to,
         subject: 'Rejection mail',
         html: htmlContent,

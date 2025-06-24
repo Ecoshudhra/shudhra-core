@@ -61,7 +61,6 @@ exports.validateMunicipalityLogin = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
-
 exports.validateMunicipalityOtpVerification = [
   body('email').notEmpty().withMessage("Email is required").isEmail().withMessage('Invalid email'),
   body('otp').notEmpty().withMessage('Otp is required'),

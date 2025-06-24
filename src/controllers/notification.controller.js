@@ -1,4 +1,7 @@
-const { getNotificationsService, deleteAllNotificationsService, deleteSingleNotificationService } = require("../service/notification.service");
+const {
+  getNotificationsService,
+  deleteAllNotificationsService,
+  deleteSingleNotificationService } = require("../service/notification.service");
 
 
 const allowedTypes = ['admin', 'municipality', 'citizen'];
@@ -31,7 +34,6 @@ exports.deleteAllNotifications = async (req, res) => {
     await deleteAllNotificationsService(type, userId);
     res.json({ message: `All ${type} notifications deleted successfully`, success: true, });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Failed to delete notifications', success: false });
   }
 };
@@ -50,9 +52,8 @@ exports.deleteSingleNotification = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found or not authorized' });
     }
 
-    res.json({ success: false, message: 'Notification deleted successfully' });
+    res.json({ success: true, message: 'Notification deleted successfully' });
   } catch (err) {
-    console.error(err);
     res.status(500).json({ success: false, message: 'Failed to delete notification' });
   }
 };

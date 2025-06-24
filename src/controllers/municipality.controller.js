@@ -1,4 +1,3 @@
-// controllers/municipality.controller.js
 const { validationResult } = require("express-validator");
 const {
   requestMunicipalityService,
@@ -102,7 +101,7 @@ exports.municipalityLogout = () => async (req, res) => {
 exports.getAllMunicipalities = () => async (req, res) => {
   try {
     const result = await fetchMunicipalitiesService(req.query);
-    return res.status(result.success ? 200 : 400).json(result);
+    return res.status(result.success ? 200 : 400).json({ success: result.success, ...result });
   } catch (err) {
     return res.status(err.statusCode || 500).json({ success: false, message: err.message });
   }

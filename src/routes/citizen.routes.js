@@ -1,7 +1,12 @@
 const express = require('express');
 const controllers = require('../controllers/citizen.controller')
 const authMiddleware = require('../middlewares/auth.middleware');
-const { validateCitizenRegister, validateCitizenLogin, validateCitizenOtpVerification, validateCitizenSendOtpRequest, validateCitizenResetPassword, validateCitizenAddress } = require('../middlewares/citizen.middleware');
+const { validateCitizenRegister,
+    validateCitizenLogin,
+    validateCitizenOtpVerification,
+    validateCitizenSendOtpRequest,
+    validateCitizenResetPassword,
+    validateCitizenAddress } = require('../middlewares/citizen.middleware');
 module.exports = function (io) {
     const router = express.Router()
 
@@ -16,6 +21,7 @@ module.exports = function (io) {
     router.get('/auth/profile', authMiddleware(['citizen']), controllers.citizenProfile(io));
     router.get('/auth/logout', authMiddleware(['citizen']), controllers.citizenLogout(io));
 
+    // non -authenticated routes
     router.put('/address', authMiddleware(['citizen']), validateCitizenAddress, controllers.updateAddress(io))
     return router;
 }

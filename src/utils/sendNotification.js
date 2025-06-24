@@ -1,4 +1,4 @@
-// utils/sendNotification.js
+
 
 const { default: mongoose } = require('mongoose');
 const Notification = require('../models/Notification.model');
