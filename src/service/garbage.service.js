@@ -112,12 +112,22 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
 
 exports.GarbageByCitizen = async (citizenId, query) => {
   const filter = { reportedBy: citizenId };
-  if (query.status) filter.status = query.status;
-  if (query.type) filter.type = query.type;
 
-  return await GarbageReport.find(filter)
-    .sort({ createdAt: -1 })
+  if (query.status && query.status !== 'All') {
+    filter.status = query.status;
+  }
+
+  if (query.type && query.type !== 'All') {
+    filter.type = query.type;
+  }
+
+  const sortOrder = query.sort === '1' ? 1 : -1;
+    
+  const reports = await GarbageReport.find(filter)
+    .sort({ createdAt: sortOrder })
     .populate('assignedToMunicipality', 'name');
+
+  return reports;
 };
 
 
