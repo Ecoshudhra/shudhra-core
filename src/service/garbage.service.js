@@ -100,7 +100,9 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
         receiverId: null,
         receiverType: 'Admin',
         message: `Citizen submitted a garbage report near ${address}. Assigned to ${nearestMunicipality.name}.`,
-        link: `/admin/reports`
+        link: `/admin/reports`,
+        data: newGarbage.populate('assignedToMunicipality', 'name')
+            .populate('reportedBy', 'name phone email avatar')
     });
 
 
