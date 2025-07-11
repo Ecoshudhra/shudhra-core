@@ -111,40 +111,62 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
 };
 
 exports.GarbageByCitizen = async (citizenId, query) => {
-  const filter = { reportedBy: citizenId };
+    const filter = { reportedBy: citizenId };
 
-  if (query.status && query.status !== 'All') {
-    filter.status = query.status;
-  }
+    if (query.status && query.status !== 'All') {
+        filter.status = query.status;
+    }
 
-  if (query.type && query.type !== 'All') {
-    filter.type = query.type;
-  }
+    if (query.type && query.type !== 'All') {
+        filter.type = query.type;
+    }
 
-  const sortOrder = query.sort === '1' ? 1 : -1;
-    
-  const reports = await GarbageReport.find(filter)
-    .sort({ createdAt: sortOrder })
-    .populate('assignedToMunicipality', 'name');
+    const sortOrder = query.sort === '1' ? 1 : -1;
 
-  return reports;
+    const reports = await GarbageReport.find(filter)
+        .sort({ createdAt: sortOrder })
+        .populate('assignedToMunicipality', 'name');
+
+    return reports;
 };
 
 
 exports.AllGarbage = async (query) => {
     const filter = {};
-    if (query.status) filter.status = query.status;
-    if (query.type) filter.type = query.type;
+    if (query.status && query.status !== 'All') {
+        filter.status = query.status;
+    }
 
-    return await GarbageReport.find(filter).sort({ createdAt: -1 });
+    if (query.type && query.type !== 'All') {
+        filter.type = query.type;
+    }
+    const sortOrder = query.sort === '1' ? 1 : -1;
+
+    const reports = await GarbageReport.find(filter)
+        .sort({ createdAt: sortOrder })
+        .populate('assignedToMunicipality', 'name')
+        .populate('reportedBy', 'name phone email avatar')
+
+    return reports;
 };
 
 exports.GarbageByMunicipality = async (municipalityId, query) => {
     const filter = { assignedToMunicipality: municipalityId };
-    if (query.status) filter.status = query.status;
-    if (query.type) filter.type = query.type;
+    if (query.status && query.status !== 'All') {
+        filter.status = query.status;
+    }
 
-    return await GarbageReport.find(filter).sort({ createdAt: -1 });
+    if (query.type && query.type !== 'All') {
+        filter.type = query.type;
+    }
+
+    const sortOrder = query.sort === '1' ? 1 : -1;
+
+    const reports = await GarbageReport.find(filter)
+        .sort({ createdAt: sortOrder })
+        .populate('assignedToMunicipality', 'name');
+
+    return reports;
 };
 
 exports.garbageById = async (id) => {
