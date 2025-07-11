@@ -3,7 +3,7 @@
 const { default: mongoose } = require('mongoose');
 const Notification = require('../models/Notification.model');
 
-const sendNotification = async ({ io, receiverId, receiverType, message, link = '' }) => {
+const sendNotification = async ({ io, receiverId, receiverType, message, link = '', data = null }) => {
     // Save to DB
     const notification = await Notification.create({
         receiverId,
@@ -25,6 +25,7 @@ const sendNotification = async ({ io, receiverId, receiverType, message, link = 
         link: notification.link,
         receiverType: notification.receiverType,
         createdAt: notification.createdAt,
+        data: data,
     });
 
     return notification;
