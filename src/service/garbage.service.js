@@ -3,7 +3,7 @@ const Municipality = require("../models/Municipality.model");
 const Citizen = require("../models/Citizen.model");
 const { validationResult } = require("express-validator");
 const mongoose = require("mongoose");
-const { alertNewCreated } = require("../utils/socketUtils");
+const { alertNewCreated, sendNotification } = require("../utils/socketUtils");
 
 exports.createGarbageReport = async (reportedBy, req, io) => {
     const errors = validationResult(req);
