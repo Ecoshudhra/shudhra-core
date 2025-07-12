@@ -4,6 +4,7 @@ const BlacklistedToken = require("../models/BlacklistedToken.model");
 const { hashPassword, comparePassword } = require("../utils/password.util");
 const { generateOtp, sendOtpEmail } = require("./mail/otp.service");
 const { createToken, verifyToken } = require("../utils/jwt.util");
+const { alertNewCreated } = require("../utils/socketUtils");
 
 
 exports.registerCitizenService = async (data, io) => {
@@ -18,6 +19,21 @@ exports.registerCitizenService = async (data, io) => {
     await citizen.save();
 
     delete citizen._doc.password;
+
+    await alertNewCreated({
+        io,
+        receiverId: null,
+        receiverType: 'Admin',
+        creationType: 'Citizen',
+        data: {
+            _id: citizen._id,
+            avatar: citizen.avatar,
+            name: citizen.name,
+            email: citizen.email,
+            phone: citizen.phone,
+        }
+    });
+
     return { message: 'Citizen registered successfully', citizen };
 };
 

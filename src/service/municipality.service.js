@@ -4,9 +4,9 @@ const BlacklistedToken = require("../models/BlacklistedToken.model");
 const { hashPassword, comparePassword } = require("../utils/password.util");
 const { createToken, verifyToken } = require("../utils/jwt.util");
 const { generateOtp, sendOtpEmail } = require("./mail/otp.service");
-const sendNotification = require("../utils/sendNotification");
 const { sendMunicipalityApprovedEmail, sendMunicipalityRejectEmail } = require("./mail/municipalityStatus.service");
 const mongoose = require("mongoose");
+const { alertNewCreated, sendNotification } = require("../utils/socketUtils");
 
 
 exports.requestMunicipalityService = async (data, io) => {
@@ -29,12 +29,28 @@ exports.requestMunicipalityService = async (data, io) => {
   });
   await municipality.save();
 
+  await alertNewCreated({
+    io,
+    receiverId: null,
+    receiverType: 'Admin',
+    creationType: 'Municipality',
+    data: {
+      _id: municipality._id,
+      name: municipality.name,
+      email: municipality.email,
+      phone: municipality.phone,
+      ulbCode: municipality.ulbCode,
+      type: municipality.type,
+    }
+  });
+
   await sendNotification({
     io,
     receiverId: null,
     receiverType: "Admin",
     message: `New Municipality Request: ${name}`,
-    link: "/admin/municipality"
+    redirectType: "Municipality",
+    redirectId: municipality._id
   });
 
   return { message: "Request submitted successfully", municipality };

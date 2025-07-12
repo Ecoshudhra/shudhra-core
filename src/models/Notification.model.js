@@ -19,7 +19,17 @@ const NotificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  link: { type: String },
+  redirectType: {
+    type: String,
+    enum: ['Municipality', 'GarbageReport'],
+    required: true
+  },
+  redirectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: 'redirectType',
+    required: true
+  }
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Notification', NotificationSchema);

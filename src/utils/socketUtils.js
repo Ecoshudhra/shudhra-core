@@ -1,15 +1,14 @@
-
-
 const { default: mongoose } = require('mongoose');
 const Notification = require('../models/Notification.model');
 
-const sendNotification = async ({ io, receiverId, receiverType, message, link = '', data = null }) => {
+const sendNotification = async ({ io, receiverId, receiverType, message, redirectType, redirectId }) => {
     // Save to DB
     const notification = await Notification.create({
         receiverId,
         receiverType,
         message,
-        link,
+        redirectType,
+        redirectId
     });
 
     // Emit to the right room
@@ -21,14 +20,28 @@ const sendNotification = async ({ io, receiverId, receiverType, message, link = 
 
     io.to(room).emit('newNotification', {
         _id: notification._id,
-        message: notification.message,
-        link: notification.link,
         receiverType: notification.receiverType,
+        message: notification.message,
+        link: { redirectType, redirectId },
         createdAt: notification.createdAt,
-        data: data,
     });
 
     return notification;
 };
 
-module.exports = sendNotification;
+const alertNewCreated = async ({ io, receiverId, receiverType, creationType, data }) => {
+    const room =
+        receiverId && mongoose.Types.ObjectId.isValid(receiverId)
+            ? `${receiverType.toLowerCase()}-${receiverId}`
+            : receiverType.toLowerCase();
+
+
+    io.to(room).emit(`new${creationType}Create`, data);
+
+    return true;
+};
+
+module.exports = {
+    sendNotification,
+    alertNewCreated
+};

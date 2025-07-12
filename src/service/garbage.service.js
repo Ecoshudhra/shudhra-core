@@ -3,7 +3,7 @@ const Municipality = require("../models/Municipality.model");
 const Citizen = require("../models/Citizen.model");
 const { validationResult } = require("express-validator");
 const mongoose = require("mongoose");
-const sendNotification = require("../utils/sendNotification");
+const { alertNewCreated } = require("../utils/socketUtils");
 
 exports.createGarbageReport = async (reportedBy, req, io) => {
     const errors = validationResult(req);
@@ -85,13 +85,44 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
         )
     ]);
 
+    let commonData = {
+        _id: newGarbage._id,
+        reportedBy: {
+            avatar: citizen.avatar,
+            name: citizen.name,
+            email: citizen.email,
+            phone: citizen.phone,
+        },
+        assignedToMunicipality: {
+            name: nearestMunicipality.name,
+        },
+        status: "Pending"
+    }
+
+    await alertNewCreated({ // alert to admin
+        io,
+        receiverId: null,
+        receiverType: 'Admin',
+        creationType: 'GarbageReport',
+        data: commonData
+    });
+
+    await alertNewCreated({ // municipality to admin
+        io,
+        receiverId: nearestMunicipality._id,
+        receiverType: 'Municipality',
+        creationType: 'GarbageReport',
+        data: commonData
+    });
+
     // Send notification to garbage collector
     await sendNotification({
         io,
         receiverId: nearestMunicipality._id,
         receiverType: 'Municipality',
         message: "A new garbage report has been submitted in your area. Please review and take necessary action.",
-        link: `/admin/municipality/`
+        redirectType: 'GarbageReport',
+        redirectId: newGarbage._id
     });
 
     // send notification to admin
@@ -100,8 +131,8 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
         receiverId: null,
         receiverType: 'Admin',
         message: `Citizen submitted a garbage report near ${address}. Assigned to ${nearestMunicipality.name}.`,
-        link: `/admin/reports`,
-        data: { garbageId: newGarbage._id, avatar: citizen.avatar, name: citizen.name, email: citizen.email, phone: citizen.phone, municipalityName: nearestMunicipality._id, status: "Pending" }
+        redirectType: 'GarbageReport',
+        redirectId: newGarbage._id
     });
 
 
@@ -111,6 +142,7 @@ exports.createGarbageReport = async (reportedBy, req, io) => {
     };
 };
 
+// for citizen pannel
 exports.GarbageByCitizen = async (citizenId, query) => {
     const filter = { reportedBy: citizenId };
 
@@ -131,7 +163,27 @@ exports.GarbageByCitizen = async (citizenId, query) => {
     return reports;
 };
 
+// for muicipality pannel
+exports.GarbageByMunicipality = async (municipalityId, query) => {
+    const filter = { assignedToMunicipality: municipalityId };
+    if (query.status && query.status !== 'All') {
+        filter.status = query.status;
+    }
 
+    if (query.type && query.type !== 'All') {
+        filter.type = query.type;
+    }
+
+    const sortOrder = query.sort === '1' ? 1 : -1;
+
+    const reports = await GarbageReport.find(filter)
+        .sort({ createdAt: sortOrder })
+        .populate('reportedBy', 'name phone email avatar');
+
+    return reports;
+};
+
+// for admin pannel
 exports.AllGarbage = async (query) => {
     const filter = {};
     if (query.status && query.status !== 'All') {
@@ -151,25 +203,6 @@ exports.AllGarbage = async (query) => {
     return reports;
 };
 
-exports.GarbageByMunicipality = async (municipalityId, query) => {
-    const filter = { assignedToMunicipality: municipalityId };
-    if (query.status && query.status !== 'All') {
-        filter.status = query.status;
-    }
-
-    if (query.type && query.type !== 'All') {
-        filter.type = query.type;
-    }
-
-    const sortOrder = query.sort === '1' ? 1 : -1;
-
-    const reports = await GarbageReport.find(filter)
-        .sort({ createdAt: sortOrder })
-        .populate('assignedToMunicipality', 'name');
-
-    return reports;
-};
-
 exports.garbageById = async (id) => {
     return await GarbageReport.findById(id)
         .populate('reportedBy')
@@ -185,7 +218,6 @@ exports.updateGarbageStatusService = async (garbageId, status, req, io) => {
     if (!mongoose.Types.ObjectId.isValid(garbageId)) {
         throw { message: "Invalid Municipality ID", statusCode: 400 };
     }
-
 
     const ALLOWED_TRANSITIONS = {
         'Pending': 'In Progress',
@@ -233,18 +265,11 @@ exports.updateGarbageStatusService = async (garbageId, status, req, io) => {
             io,
             receiverId: citizen._id,
             receiverType: 'Citizen',
-            message: `Your garbage report at ${garbageReport.location.address} has been resolved. You've earned ${citizen.ecoCrystals.rewardPerReport} EcoCrystals!`,
-            link: `/citizen/reports/${garbageReport._id}`
+            message: `Your garbage report at ${garbageReport.location.address} has been resolved.`,
+            redirectType: 'GarbageReport',
+            redirectId: garbageReport._id
         });
 
-        // Optional: notify admin
-        await sendNotification({
-            io,
-            receiverId: null,
-            receiverType: 'Admin',
-            message: `Garbage report at ${garbageReport.location.address} was resolved by municipality.`,
-            link: `/admin/reports`
-        });
     }
 
     return {
